@@ -104,8 +104,9 @@ async fn get<'a>(path: PathBuf) -> Result<Box<dyn Reader>, AssetReaderError> {
     use std::io;
 
     use crate::io::VecReader;
-    use http_cache_surf::{CACacheManager, Cache, CacheMode, HttpCache, HttpCacheOptions};
-    use surf::StatusCode;
+    use http_cache_reqwest::{CACacheManager, Cache, CacheMode, HttpCache, HttpCacheOptions};
+    use reqwest::{Client, StatusCode};
+    use reqwest_middleware::ClientBuilder;
 
     #[pin_project::pin_project]
     struct ContinuousPoll<T>(#[pin] T);
@@ -121,59 +122,65 @@ async fn get<'a>(path: PathBuf) -> Result<Box<dyn Reader>, AssetReaderError> {
         }
     }
 
-    let str_path = path.to_str().ok_or_else(|| {
-        AssetReaderError::Io(
-            io::Error::new(
-                io::ErrorKind::Other,
-                format!("non-utf8 path: {}", path.display()),
-            )
-            .into(),
-        )
-    })?;
-
-    let req = surf::get(str_path);
-    let middleware_client = surf::client().with(Cache(HttpCache {
-        mode: CacheMode::Default,
-        manager: CACacheManager::default(),
-        options: HttpCacheOptions::default(),
-    }));
-
-    let mut response = ContinuousPoll(middleware_client.send(req))
-        .await
-        .map_err(|err| {
-            AssetReaderError::Io(
-                io::Error::new(
-                    io::ErrorKind::Other,
-                    format!(
-                        "unexpected status code {} while loading {}: {}",
-                        err.status(),
-                        path.display(),
-                        err.into_inner(),
-                    ),
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .unwrap()
+        .block_on(async {
+            let middleware_client = ClientBuilder::new(Client::new())
+                .with(Cache(HttpCache {
+                    mode: CacheMode::Default,
+                    manager: CACacheManager::default(),
+                    options: HttpCacheOptions::default(),
+                }))
+                .build();
+            let str_path = path.to_str().ok_or_else(|| {
+                AssetReaderError::Io(
+                    io::Error::new(
+                        io::ErrorKind::Other,
+                        format!("non-utf8 path: {}", path.display()),
+                    )
+                    .into(),
                 )
-                .into(),
-            )
-        })?;
-
-    match response.status() {
-        StatusCode::Ok => Ok(Box::new(VecReader::new(
-            ContinuousPoll(response.body_bytes())
+            })?;
+            let response = ContinuousPoll(middleware_client.get(str_path).send())
                 .await
-                .map_err(|_| AssetReaderError::NotFound(path.to_path_buf()))?,
-        )) as _),
-        StatusCode::NotFound => Err(AssetReaderError::NotFound(path)),
-        code => Err(AssetReaderError::Io(
-            io::Error::new(
-                io::ErrorKind::Other,
-                format!(
-                    "unexpected status code {} while loading {}",
-                    code,
-                    path.display()
-                ),
-            )
-            .into(),
-        )),
-    }
+                .map_err(|err| {
+                    AssetReaderError::Io(
+                        io::Error::new(
+                            io::ErrorKind::Other,
+                            format!(
+                                "unexpected status code {} while loading {}: {}",
+                                err.status().unwrap(),
+                                path.display(),
+                                err,
+                            ),
+                        )
+                        .into(),
+                    )
+                })?;
+
+            match response.status() {
+                StatusCode::OK => Ok(Box::new(VecReader::new(
+                    ContinuousPoll(response.bytes())
+                        .await
+                        .map_err(|_| AssetReaderError::NotFound(path.to_path_buf()))?
+                        .to_vec(),
+                )) as _),
+                StatusCode::NOT_FOUND => Err(AssetReaderError::NotFound(path)),
+                code => Err(AssetReaderError::Io(
+                    io::Error::new(
+                        io::ErrorKind::Other,
+                        format!(
+                            "unexpected status code {} while loading {}",
+                            code,
+                            path.display()
+                        ),
+                    )
+                    .into(),
+                )),
+            }
+        })
 }
 
 impl AssetReader for WebAssetReader {
