@@ -6,7 +6,7 @@ use crate::{
     query::{Access, ReadOnlyQueryData, ReleaseStateQueryData},
     world::{
         error::EntityComponentError, unsafe_world_cell::UnsafeEntityCell, DynamicComponentFetch,
-        FilteredEntityRef, Ref,
+        FilteredEntityRef, Ref, World,
     },
 };
 
@@ -285,6 +285,14 @@ impl<'w> EntityRef<'w> {
     /// Returns the [`Tick`] at which this entity has been spawned.
     pub fn spawn_tick(&self) -> Tick {
         self.cell.spawn_tick()
+    }
+
+    /// Gets read-only access to the world that the current entity belongs to.
+    #[inline]
+    pub fn world(&self) -> &World {
+        // SAFETY:
+        // - `EntityRef` guarantees safe immutable access to world
+        unsafe { self.cell.world().world() }
     }
 }
 

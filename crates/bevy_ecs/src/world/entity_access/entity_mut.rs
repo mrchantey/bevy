@@ -6,7 +6,7 @@ use crate::{
     query::{Access, ReadOnlyQueryData, ReleaseStateQueryData},
     world::{
         error::EntityComponentError, unsafe_world_cell::UnsafeEntityCell, DynamicComponentFetch,
-        EntityRef, FilteredEntityMut, FilteredEntityRef, Mut, Ref,
+        EntityRef, FilteredEntityMut, FilteredEntityRef, Mut, Ref, World,
     },
 };
 
@@ -666,6 +666,13 @@ impl<'w> EntityMut<'w> {
     /// Returns the [`Tick`] at which this entity has been spawned.
     pub fn spawn_tick(&self) -> Tick {
         self.cell.spawn_tick()
+    }
+    /// Gets read-only access to the world that the current entity belongs to.
+    #[inline]
+    pub fn world(&self) -> &World {
+        // SAFETY:
+        // - `EntityMut` guarantees exclusive access to world
+        unsafe { self.cell.world().world() }
     }
 }
 
