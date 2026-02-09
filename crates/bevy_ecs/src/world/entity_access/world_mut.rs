@@ -6,7 +6,7 @@ use crate::{
     change_detection::{ComponentTicks, MaybeLocation, MutUntyped, Tick},
     component::{Component, ComponentId, Components, Mutable, StorageType},
     entity::{Entity, EntityCloner, EntityClonerBuilder, EntityLocation, OptIn, OptOut},
-    event::{EntityComponentsTrigger, EntityEvent},
+    event::{EntityComponentsTrigger, EntityEvent, IntoEntityEvent},
     lifecycle::{Despawn, Remove, Replace, DESPAWN, REMOVE, REPLACE},
     observer::IntoEntityObserver,
     query::{
@@ -2198,22 +2198,13 @@ impl<'w> EntityWorldMut<'w> {
     }
 
     /// Passes the current entity into the given function, and triggers the [`EntityEvent`] returned by that function.
-    /// See [`EntityCommands::trigger`] for usage examples
-    ///
-    /// [`EntityCommands::trigger`]: crate::system::EntityCommands::trigger
+    /// See [`IntoEntityEvent`] for usage examples.
     #[track_caller]
-    pub fn trigger<'t, E: EntityEvent<Trigger<'t>: Default>>(
-        &mut self,
-        event_fn: impl FnOnce(Entity) -> E,
-    ) -> &mut Self {
-        let mut event = (event_fn)(self.entity);
+    pub fn trigger<M, T: IntoEntityEvent<M>>(&mut self, event_fn: T) -> &mut Self {
+        let (mut event, mut trigger) = event_fn.into_entity_event(self.entity);
         let caller = MaybeLocation::caller();
         self.world_scope(|world| {
-            world.trigger_ref_with_caller(
-                &mut event,
-                &mut <E::Trigger<'_> as Default>::default(),
-                caller,
-            );
+            world.trigger_ref_with_caller(&mut event, &mut trigger, caller);
         });
         self
     }

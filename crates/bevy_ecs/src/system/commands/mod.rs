@@ -24,7 +24,7 @@ use crate::{
         InvalidEntityError, OptIn, OptOut,
     },
     error::{warn, BevyError, CommandWithEntity, ErrorContext, HandleError},
-    event::{EntityEvent, Event},
+    event::{EntityEvent, Event, IntoEntityEvent},
     message::Message,
     observer::{IntoEntityObserver, IntoObserver},
     resource::Resource,
@@ -2278,49 +2278,19 @@ impl<'a> EntityCommands<'a> {
     }
 
     /// Passes the current entity into the given function, and triggers the [`EntityEvent`] returned by that function.
-    ///
-    /// # Example
-    ///
-    /// A surprising number of functions meet the trait bounds for `event_fn`:
-    ///
-    /// ```rust
-    /// # use bevy_ecs::prelude::*;
-    ///
-    /// #[derive(EntityEvent)]
-    /// struct Explode(Entity);
-    ///
-    /// impl From<Entity> for Explode {
-    ///    fn from(entity: Entity) -> Self {
-    ///       Explode(entity)
-    ///    }
-    /// }
-    ///
-    ///
-    /// fn trigger_via_constructor(mut commands: Commands) {
-    ///     // The fact that `Explode` is a single-field tuple struct
-    ///     // ensures that `Explode(entity)` is a function that generates
-    ///     // an EntityEvent, meeting the trait bounds for `event_fn`.
-    ///     commands.spawn_empty().trigger(Explode);
-    ///
-    /// }
-    ///
-    ///
-    /// fn trigger_via_from_trait(mut commands: Commands) {
-    ///     // This variant also works for events like `struct Explode { entity: Entity }`
-    ///     commands.spawn_empty().trigger(Explode::from);
-    /// }
-    ///
-    /// fn trigger_via_closure(mut commands: Commands) {
-    ///     commands.spawn_empty().trigger(|entity| Explode(entity));
-    /// }
-    /// ```
+    /// See [`IntoEntityEvent`] for usage examples.
     #[track_caller]
-    pub fn trigger<'t, E: EntityEvent<Trigger<'t>: Default>>(
-        &mut self,
-        event_fn: impl FnOnce(Entity) -> E,
-    ) -> &mut Self {
-        let event = (event_fn)(self.entity);
-        self.commands.trigger(event);
+    pub fn trigger<M, T: IntoEntityEvent<M>>(&mut self, event_fn: T) -> &mut Self
+    where
+        T::Event: Send + 'static,
+        T::Trigger: Send + 'static,
+    {
+        let entity = self.entity;
+        let (mut event, mut trigger) = event_fn.into_entity_event(entity);
+        let caller = MaybeLocation::caller();
+        self.commands.queue(move |world: &mut World| {
+            world.trigger_ref_with_caller(&mut event, &mut trigger, caller);
+        });
         self
     }
 }
