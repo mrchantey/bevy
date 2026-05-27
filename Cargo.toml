@@ -1,6 +1,6 @@
 [package]
 name = "bevy"
-version = "0.19.0-dev"
+version = "0.19.0-rc.2"
 edition = "2024"
 categories = ["game-engines", "graphics", "gui", "rendering"]
 description = "A refreshingly simple data-driven game engine and app framework"
@@ -173,11 +173,8 @@ picking = ["bevy_picking", "mesh_picking", "sprite_picking", "ui_picking"]
 default_app = [
   "async_executor",
   "bevy_asset",
-  "bevy_input_focus",
   "bevy_log",
   "bevy_state",
-  "bevy_window",
-  "custom_cursor",
   "reflect_auto_register",
 ]
 
@@ -194,6 +191,7 @@ default_platform = [
   "webgl2",
   "x11",
   "wayland",
+  "custom_cursor",
   "sysinfo_plugin",
 ]
 
@@ -208,6 +206,7 @@ common_api = [
   "bevy_shader",
   "bevy_material",
   "bevy_text",
+  "bevy_window",
   "hdr",
   "png",
 ]
@@ -252,7 +251,7 @@ common_api = [
 ]
 
 # COLLECTION: Features used to build UI Bevy apps (does not include a render backend). You generally don't need to worry about this unless you are using a custom renderer.
-ui_api = ["default_app", "common_api", "bevy_ui"]
+ui_api = ["default_app", "common_api", "bevy_input_focus", "bevy_ui"]
 
 # COLLECTION: Bevy's built-in UI renderer, built on top of `bevy_render`.
 ui_bevy_render = [
@@ -730,12 +729,12 @@ hotpatching = ["bevy_internal/hotpatching"]
 debug = ["bevy_internal/debug"]
 
 [dependencies]
-bevy_internal = { path = "crates/bevy_internal", version = "0.19.0-dev", default-features = false }
+bevy_internal = { path = "crates/bevy_internal", version = "0.19.0-rc.2", default-features = false }
 tracing = { version = "0.1", default-features = false, optional = true }
 
 # Wasm does not support dynamic linking.
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
-bevy_dylib = { path = "crates/bevy_dylib", version = "0.19.0-dev", default-features = false, optional = true }
+bevy_dylib = { path = "crates/bevy_dylib", version = "0.19.0-rc.2", default-features = false, optional = true }
 
 [dev-dependencies]
 rand = "0.10.0"
@@ -746,16 +745,16 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1.0.140"
 bytemuck = "1"
 # The following explicit dependencies are needed for proc macros to work inside of examples as they are part of the bevy crate itself.
-bevy_animation = { path = "crates/bevy_animation", version = "0.19.0-dev", default-features = false }
-bevy_asset = { path = "crates/bevy_asset", version = "0.19.0-dev", default-features = false }
-bevy_ecs = { path = "crates/bevy_ecs", version = "0.19.0-dev", default-features = false }
-bevy_gizmos = { path = "crates/bevy_gizmos", version = "0.19.0-dev", default-features = false }
-bevy_image = { path = "crates/bevy_image", version = "0.19.0-dev", default-features = false }
-bevy_reflect = { path = "crates/bevy_reflect", version = "0.19.0-dev", default-features = false }
-bevy_render = { path = "crates/bevy_render", version = "0.19.0-dev", default-features = false }
-bevy_settings = { path = "crates/bevy_settings", version = "0.19.0-dev", default-features = false }
-bevy_state = { path = "crates/bevy_state", version = "0.19.0-dev", default-features = false }
-bevy_scene = { path = "crates/bevy_scene", version = "0.19.0-dev", default-features = false }
+bevy_animation = { path = "crates/bevy_animation", version = "0.19.0-rc.2", default-features = false }
+bevy_asset = { path = "crates/bevy_asset", version = "0.19.0-rc.2", default-features = false }
+bevy_ecs = { path = "crates/bevy_ecs", version = "0.19.0-rc.2", default-features = false }
+bevy_gizmos = { path = "crates/bevy_gizmos", version = "0.19.0-rc.2", default-features = false }
+bevy_image = { path = "crates/bevy_image", version = "0.19.0-rc.2", default-features = false }
+bevy_reflect = { path = "crates/bevy_reflect", version = "0.19.0-rc.2", default-features = false }
+bevy_render = { path = "crates/bevy_render", version = "0.19.0-rc.2", default-features = false }
+bevy-settings = { path = "crates/bevy_settings", version = "0.19.0-rc.2", default-features = false }
+bevy_state = { path = "crates/bevy_state", version = "0.19.0-rc.2", default-features = false }
+bevy_scene = { path = "crates/bevy_scene", version = "0.19.0-rc.2", default-features = false }
 # Needed to poll Task examples
 futures-lite = "2.0.1"
 futures-timer = { version = "3", features = ["wasm-bindgen", "gloo-timers"] }
@@ -3817,6 +3816,17 @@ doc-scrape-examples = true
 [package.metadata.example.font_weights]
 name = "Font Weights"
 description = "Demonstrates how to use font weights."
+category = "UI (User Interface)"
+wasm = true
+
+[[example]]
+name = "font_variations"
+path = "examples/ui/text/font_variations.rs"
+doc-scrape-examples = true
+
+[package.metadata.example.font_variations]
+name = "Font Variations"
+description = "Demonstrates how to use OpenType font variations."
 category = "UI (User Interface)"
 wasm = true
 
