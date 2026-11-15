@@ -2321,7 +2321,7 @@ pub enum TextureError {
     #[error("invalid image extension: {0}")]
     InvalidImageExtension(String),
     /// Failed to load an image.
-    #[error("failed to load an image: {0}")]
+    #[error("failed to load an image")]
     ImageError(#[from] image::ImageError),
     /// Texture format isn't supported.
     #[error("unsupported texture format: {0}")]
